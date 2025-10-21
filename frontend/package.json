@@ -3,32 +3,40 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 9000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 9000",
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "14.0.0",
-    "react": "^18",
-    "react-dom": "^18",
-    "axios": "^1.6.0",
-    "recharts": "^2.8.0",
-    "react-bits": "^1.0.0",
-    "tailwindcss": "^3.3.0",
+    "@hookform/resolvers": "^5.2.2",
     "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0",
-    "lucide-react": "^0.294.0",
+    "axios": "^1.6.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.24",
     "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "lucide-react": "^0.294.0",
+    "next": "14.0.0",
+    "next-themes": "^0.4.6",
+    "postcss": "^8.4.0",
+    "react": "^18",
+    "react-bits": "^1.0.0",
+    "react-dom": "^18",
+    "react-hook-form": "^7.65.0",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^2.8.0",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^3.3.0",
     "xlsx": "^0.18.5",
-    "jspdf-autotable": "^3.8.2"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
-    "eslint-config-next": "14.0.0"
+    "eslint-config-next": "14.0.0",
+    "typescript": "^5"
   }
 }

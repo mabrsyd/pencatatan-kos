@@ -31,10 +31,6 @@ func GetDashboard(c *gin.Context) {
 	var pendapatanBulanan []map[string]interface{}
 	database.DB.Model(&models.Tagihan{}).Where("status = ?", "Lunas").Select("bulan, SUM(jumlah) as total").Group("bulan").Find(&pendapatanBulanan)
 
-	// Pengeluaran bulanan
-	var pengeluaranBulanan []map[string]interface{}
-	database.DB.Model(&models.Pengeluaran{}).Select("DATE_FORMAT(tanggal, '%Y-%m') as bulan, SUM(jumlah) as total").Group("bulan").Find(&pengeluaranBulanan)
-
 	// Tingkat hunian kamar
 	var tersedia int64
 	database.DB.Model(&models.Kamar{}).Where("status = ?", "Tersedia").Count(&tersedia)
@@ -55,8 +51,7 @@ func GetDashboard(c *gin.Context) {
 			"tagihanBelum":    tagihanBelum,
 		},
 		"charts": gin.H{
-			"pendapatanBulanan":  pendapatanBulanan,
-			"pengeluaranBulanan": pengeluaranBulanan,
+			"pendapatanBulanan": pendapatanBulanan,
 			"hunianKamar": gin.H{
 				"tersedia":  tersedia,
 				"terisi":    terisi,

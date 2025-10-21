@@ -6,11 +6,13 @@ import (
 
 type Tagihan struct {
 	gorm.Model
-	PenyewaID uint    `json:"penyewa_id" gorm:"not null"`
-	Penyewa   Penyewa `gorm:"foreignKey:PenyewaID"`
-	KamarID   uint    `json:"kamar_id" gorm:"not null"`
-	Kamar     Kamar   `gorm:"foreignKey:KamarID"`
-	Bulan     string  `json:"bulan" gorm:"not null"` // e.g., "2023-10"
-	Jumlah    int     `json:"jumlah" gorm:"not null"`
-	Status    string  `json:"status" gorm:"not null"` // Lunas, Belum Lunas
+	PenyewaID    uint    `json:"penyewa_id" gorm:"not null"`
+	Penyewa      Penyewa `gorm:"foreignKey:PenyewaID"`
+	KamarID      uint    `json:"kamar_id" gorm:"not null"`
+	Kamar        Kamar   `gorm:"foreignKey:KamarID"`
+	Bulan        string  `json:"bulan" gorm:"not null"` // e.g., "2023-10"
+	Jumlah       int     `json:"jumlah" gorm:"not null"`
+	Terbayar     int     `json:"terbayar" gorm:"default:0"`              // Jumlah yang sudah dibayar (untuk cicilan)
+	Status       string  `json:"status" gorm:"not null"`                 // Lunas, Belum Lunas, Cicil
+	JenisTagihan string  `json:"jenis_tagihan" gorm:"default:'Penyewa'"` // Penyewa, Listrik, WiFi, Air, dll
 }

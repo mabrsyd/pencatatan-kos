@@ -65,29 +65,6 @@ JWT_SECRET=your_secret_key_here
 PORT=8080
 ```
 
-## API Endpoints
-
-### Authentication
-
-- POST /login
-- POST /register
-
-### Protected Routes (require JWT token)
-
-- GET /dashboard
-- CRUD /kamar, /penyewa, /tagihan, /transaksi, /pengeluaran, /users
-
-## Database Schema
-
-- users: id, name, email, password, role
-- kamar: id, nama, harga, status, penyewa_id
-- penyewa: id, nama, kontak, kamar_id, tanggal_masuk
-- tagihan: id, penyewa_id, kamar_id, bulan, jumlah, status
-- transaksi: id, jenis, kategori, jumlah, tanggal
-- pengeluaran: id, kategori, jumlah, keterangan, tanggal
-
-## Running the Application
-
 1. Start PostgreSQL and create database
 2. Run backend: `go run main.go` (port 8080)
 3. Run frontend: `npm run dev` (port 3000)
@@ -102,15 +79,3 @@ PORT=8080
 - **Transactions**: Income and expense tracking
 - **User Management**: Admin panel for user management
 - **Modern UI**: Lilac theme, responsive, dark mode support
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create Pull Request
-
-## License
-
-MIT License
