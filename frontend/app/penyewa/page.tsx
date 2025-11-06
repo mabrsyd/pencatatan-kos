@@ -19,7 +19,7 @@ import * as XLSX from 'xlsx'
 import { Users, UserPlus, Search, Download, Edit, Trash2, Calendar, Phone, Home, Mail, MapPin, X, Eye } from 'lucide-react'
 
 interface Penyewa {
-  ID: number
+  id: number
   nama: string
   email?: string
   no_hp?: string
@@ -112,7 +112,7 @@ export default function PenyewaPage() {
       setIsSubmitting(true)
       const token = localStorage.getItem('token')
       if (editingPenyewa) {
-        await axios.put(`http://localhost:8080/penyewa/${editingPenyewa.ID}`, data, {
+        await axios.put(`http://localhost:8080/penyewa/${editingPenyewa.id}`, data, {
           headers: { Authorization: `Bearer ${token}` }
         })
         showSuccess('Penyewa berhasil diperbarui')
@@ -156,7 +156,7 @@ export default function PenyewaPage() {
 
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://localhost:8080/penyewa/${penyewaToDelete.ID}`, {
+      await axios.delete(`http://localhost:8080/penyewa/${penyewaToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       showSuccess('Penyewa berhasil dihapus')
@@ -185,7 +185,7 @@ export default function PenyewaPage() {
       p.nama,
       p.no_hp || '',
       new Date(p.tanggal_masuk).toLocaleDateString('id-ID'),
-      kamar.find(k => k.ID === p.kamar_id)?.nama || '-'
+      getKamarName(p.kamar_id)
     ])
 
     ;(doc as any).autoTable({
@@ -202,12 +202,20 @@ export default function PenyewaPage() {
       'Nama Penyewa': p.nama,
       'No HP': p.no_hp || '',
       'Tanggal Masuk': new Date(p.tanggal_masuk).toLocaleDateString('id-ID'),
-      'Kamar': kamar.find(k => k.ID === p.kamar_id)?.nama || '-'
+      'Kamar': getKamarName(p.kamar_id)
     })))
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Penyewa')
     XLSX.writeFile(workbook, 'laporan-penyewa.xlsx')
+  }
+
+  // Helper to find kamar name robustly when IDs might be number or string
+  const getKamarName = (id: number | string | undefined) => {
+    if (id === undefined || id === null || id === '') return 'Kamar tidak ditemukan'
+    const idStr = String(id)
+    const found = kamar.find(k => String(k.id) === idStr)
+    return found?.nama || 'Kamar tidak ditemukan'
   }
 
   return (
@@ -337,7 +345,7 @@ export default function PenyewaPage() {
               {
                 key: 'kamar_id',
                 header: 'Kamar',
-                render: (value) => kamar.find(k => k.ID === value)?.nama || 'Kamar tidak ditemukan'
+                render: (value) => getKamarName(value)
               },
               {
                 key: 'tanggal_masuk',
@@ -399,7 +407,7 @@ export default function PenyewaPage() {
                 render: (_, row) => (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => router.push(`/penyewa/${row.ID}`)}
+                      onClick={() => router.push(`/penyewa/${row.id}`)}
                       className="p-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-md transition-colors duration-200"
                       title="Detail"
                     >
@@ -434,7 +442,7 @@ export default function PenyewaPage() {
             emptyMessage="Belum ada data penyewa"
             itemsPerPage={10}
             showPagination={true}
-            onRowClick={(row) => router.push(`/penyewa/${row.ID}`)}
+            onRowClick={(row) => router.push(`/penyewa/${row.id}`)}
           />
         </div>
       </div>
@@ -572,7 +580,7 @@ export default function PenyewaPage() {
                 >
                   <option value="">Pilih Kamar</option>
                   {kamarTersedia.map((k) => (
-                    <option key={k.ID} value={k.ID}>{k.nama}</option>
+                    <option key={k.id} value={k.id}>{k.nama}</option>
                   ))}
                 </select>
                 {errors.kamar_id && (

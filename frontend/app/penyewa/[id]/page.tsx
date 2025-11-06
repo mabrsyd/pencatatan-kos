@@ -9,11 +9,11 @@ import axios from 'axios'
 import Sidebar from '../../../components/Sidebar'
 import ConfirmationModal from '../../../components/ConfirmationModal'
 import { showSuccess, showError } from '../../../components/toast'
-import { tagihanSchema, type TagihanFormData } from '../../../schemas/validation'
+import { tagihanSchema, type TagihanFormData, paymentUpdateSchema, type PaymentUpdateFormData } from '../../../schemas/validation'
 import { ArrowLeft, Calendar, DollarSign, Edit, Eye, User, Home, Mail, Phone, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface Penyewa {
-  ID: number
+  id: number
   nama: string
   email?: string
   no_hp?: string
@@ -21,19 +21,21 @@ interface Penyewa {
   kamar_id: number
   tanggal_masuk: string
   Kamar?: {
-    ID: number
+    id: number
     nama: string
     harga: number
   }
 }
 
 interface Tagihan {
-  ID: number
+  id: number
   bulan: string
   jumlah: number
   terbayar: number
   status: string
   jenis_tagihan: string
+  diterima_oleh?: string
+  tanggal_bayar?: string
 }
 
 export default function PenyewaDetailPage() {
@@ -62,15 +64,14 @@ export default function PenyewaDetailPage() {
     setValue,
     watch,
     formState: { errors, isSubmitting }
-  } = useForm<{
-    status: 'Lunas' | 'Belum Lunas' | 'Cicil'
-    jumlah: number
-    jenis_tagihan: string
-  }>({
+  } = useForm<PaymentUpdateFormData>({
+    resolver: zodResolver(paymentUpdateSchema),
     defaultValues: {
       status: 'Belum Lunas',
       jumlah: 0,
-      jenis_tagihan: 'Penyewa'
+      jenis_tagihan: 'Penyewa',
+      diterima_oleh: '',
+      tanggal_bayar: ''
     }
   })
 
@@ -113,34 +114,78 @@ export default function PenyewaDetailPage() {
     }
   }
 
-  const openPaymentModal = (tagihan: Tagihan) => {
-    setSelectedTagihan(tagihan)
-    setValue('status', tagihan.status as 'Lunas' | 'Belum Lunas' | 'Cicil')
-    setValue('jumlah', tagihan.terbayar)
-    setValue('jenis_tagihan', tagihan.jenis_tagihan)
+  const openPaymentModal = (tagihan: Tagihan | null, month?: number) => {
+    if (tagihan) {
+      setSelectedTagihan(tagihan)
+      setValue('status', tagihan.status as 'Lunas' | 'Belum Lunas' | 'Cicil')
+      setValue('jumlah', tagihan.terbayar)
+      setValue('jenis_tagihan', tagihan.jenis_tagihan)
+      setValue('diterima_oleh', tagihan.diterima_oleh || '')
+      setValue('tanggal_bayar', tagihan.tanggal_bayar || '')
+    } else if (month && penyewa) {
+      // Create mode
+      const monthStr = `${selectedYear}-${month.toString().padStart(2, '0')}`
+      const dummyTagihan: Tagihan = {
+        id: 0, // Will be set after creation
+        bulan: monthStr,
+        jumlah: penyewa.Kamar?.harga || 0,
+        terbayar: 0,
+        status: 'Belum Lunas',
+        jenis_tagihan: 'Penyewa',
+        diterima_oleh: '',
+        tanggal_bayar: ''
+      }
+      setSelectedTagihan(dummyTagihan)
+      setValue('status', 'Belum Lunas')
+      setValue('jumlah', 0)
+      setValue('jenis_tagihan', 'Penyewa')
+      setValue('diterima_oleh', '')
+      setValue('tanggal_bayar', '')
+    }
     setShowPaymentModal(true)
   }
 
-  const handlePaymentUpdate = async (data: { status: 'Lunas' | 'Belum Lunas' | 'Cicil', jumlah: number, jenis_tagihan: string }) => {
+  const handlePaymentUpdate = async (data: PaymentUpdateFormData) => {
     if (!selectedTagihan) return
 
     try {
       const token = localStorage.getItem('token')
-      await axios.put(`http://localhost:8080/tagihan/${selectedTagihan.ID}`, {
-        status: data.status,
-        terbayar: data.jumlah || 0,
-        jenis_tagihan: data.jenis_tagihan
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      showSuccess('Pembayaran berhasil diperbarui')
+      if (selectedTagihan.id === 0) {
+        // Create new tagihan
+        await axios.post('http://localhost:8080/tagihan', {
+          penyewa_id: parseInt(penyewaId),
+          kamar_id: penyewa?.kamar_id,
+          bulan: selectedTagihan.bulan,
+          jumlah: selectedTagihan.jumlah,
+          status: data.status,
+          terbayar: data.jumlah || 0,
+          jenis_tagihan: data.jenis_tagihan,
+          diterima_oleh: data.diterima_oleh || '',
+          tanggal_bayar: data.tanggal_bayar || ''
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        showSuccess('Tagihan berhasil dibuat')
+      } else {
+        // Update existing tagihan
+        await axios.put(`http://localhost:8080/tagihan/${selectedTagihan.id}`, {
+          status: data.status,
+          terbayar: data.jumlah || 0,
+          jenis_tagihan: data.jenis_tagihan,
+          diterima_oleh: data.diterima_oleh || '',
+          tanggal_bayar: data.tanggal_bayar || ''
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        showSuccess('Pembayaran berhasil diperbarui')
+      }
       setShowPaymentModal(false)
       setSelectedTagihan(null)
       reset()
       fetchTagihan()
     } catch (error) {
       console.error('Failed to update payment', error)
-      showError('Gagal memperbarui pembayaran')
+      showError(selectedTagihan.id === 0 ? 'Gagal membuat tagihan' : 'Gagal memperbarui pembayaran')
     }
   }
 
@@ -157,15 +202,45 @@ export default function PenyewaDetailPage() {
     return months[month - 1]
   }
 
+  const getMonthsToShow = () => {
+    if (!penyewa) return []
+
+    const entryDate = new Date(penyewa.tanggal_masuk)
+    const entryYear = entryDate.getFullYear()
+    const entryMonth = entryDate.getMonth() + 1 // JavaScript months are 0-indexed
+
+    if (selectedYear < entryYear) {
+      return [] // No months to show for years before entry
+    } else if (selectedYear > entryYear) {
+      return Array.from({ length: 12 }, (_, i) => i + 1) // All months for years after entry
+    } else {
+      // Same year as entry - show months from entry month onwards
+      return Array.from({ length: 13 - entryMonth }, (_, i) => entryMonth + i)
+    }
+  }
+
   const getTagihanForMonth = (month: number) => {
     const monthStr = `${selectedYear}-${month.toString().padStart(2, '0')}`
     return tagihan.find(t => t.bulan === monthStr)
   }
 
+  const getPenerimaOptions = () => {
+    return [
+      { value: 'Pengurus Kos', label: 'Pengurus Kos (Saya)' },
+      { value: 'Pak Kos', label: 'Pak Kos' },
+      { value: 'Lainnya', label: 'Lainnya' }
+    ]
+  }
+
   const generateYears = () => {
+    if (!penyewa) return []
+
+    const entryDate = new Date(penyewa.tanggal_masuk)
+    const entryYear = entryDate.getFullYear()
     const currentYear = new Date().getFullYear()
+
     const years = []
-    for (let i = currentYear - 2; i <= currentYear + 2; i++) {
+    for (let i = entryYear; i <= currentYear + 2; i++) {
       years.push(i)
     }
     return years
@@ -347,7 +422,7 @@ export default function PenyewaDetailPage() {
 
             {/* Monthly Grid */}
             <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
+              {getMonthsToShow().map(month => {
                 const tagihanBulan = getTagihanForMonth(month)
                 const status = tagihanBulan?.status || 'Belum Lunas'
 
@@ -357,21 +432,23 @@ export default function PenyewaDetailPage() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: month * 0.02 }}
-                    onClick={() => tagihanBulan && openPaymentModal(tagihanBulan)}
+                    onClick={() => tagihanBulan ? openPaymentModal(tagihanBulan) : openPaymentModal(null, month)}
                     className={`p-3 rounded-lg border transition-all hover:scale-105 ${
                       status === 'Lunas'
                         ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
                         : status === 'Cicil'
                         ? 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-400'
                         : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
-                    } ${tagihanBulan ? 'cursor-pointer' : 'cursor-default opacity-50'}`}
-                    disabled={!tagihanBulan}
+                    } cursor-pointer`}
                   >
                     <div className="text-center">
                       <div className="font-medium text-sm">{getMonthName(month)}</div>
-                      {tagihanBulan && (
-                        <div className="text-xs mt-1">
-                          Rp {tagihanBulan.jumlah.toLocaleString()}
+                      <div className="text-xs mt-1">
+                        {tagihanBulan ? `Rp ${tagihanBulan.jumlah.toLocaleString()}` : `Rp ${(penyewa?.Kamar?.harga || 0).toLocaleString()}`}
+                      </div>
+                      {tagihanBulan?.diterima_oleh && (
+                        <div className="text-xs mt-1 text-text-secondary dark:text-dark-text-secondary">
+                          Oleh: {tagihanBulan.diterima_oleh}
                         </div>
                       )}
                     </div>
@@ -413,7 +490,7 @@ export default function PenyewaDetailPage() {
             className="bg-surface dark:bg-dark-surface rounded-xl p-6 w-full max-w-md shadow-xl border border-border dark:border-dark-border"
           >
             <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary mb-4">
-              Update Pembayaran - {getMonthName(parseInt(selectedTagihan.bulan.split('-')[1]))} {selectedYear}
+              {selectedTagihan?.id === 0 ? 'Buat Tagihan' : 'Update Pembayaran'} - {getMonthName(parseInt(selectedTagihan.bulan.split('-')[1]))} {selectedYear}
             </h3>
 
             <form onSubmit={handleSubmit(handlePaymentUpdate)} className="space-y-4">
@@ -429,6 +506,9 @@ export default function PenyewaDetailPage() {
                   <option value="Cicil">Cicil</option>
                   <option value="Lunas">Lunas</option>
                 </select>
+                {errors.status && (
+                  <p className="text-red-500 text-xs mt-1">{errors.status.message}</p>
+                )}
               </div>
 
               <div>
@@ -441,9 +521,46 @@ export default function PenyewaDetailPage() {
                   className="w-full px-3 py-2 bg-bg-primary dark:bg-dark-bg-primary border border-border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary"
                   placeholder="0"
                 />
+                {errors.jumlah && (
+                  <p className="text-red-500 text-xs mt-1">{errors.jumlah.message}</p>
+                )}
                 <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
                   Total tagihan: Rp {selectedTagihan.jumlah.toLocaleString()}
                 </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-2">
+                  Diterima Oleh
+                </label>
+                <select
+                  {...register('diterima_oleh')}
+                  className="w-full px-3 py-2 bg-bg-primary dark:bg-dark-bg-primary border border-border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Pilih penerima...</option>
+                  {getPenerimaOptions().map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.diterima_oleh && (
+                  <p className="text-red-500 text-xs mt-1">{errors.diterima_oleh.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-2">
+                  Tanggal Pembayaran
+                </label>
+                <input
+                  type="date"
+                  {...register('tanggal_bayar')}
+                  className="w-full px-3 py-2 bg-bg-primary dark:bg-dark-bg-primary border border-border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary"
+                />
+                {errors.tanggal_bayar && (
+                  <p className="text-red-500 text-xs mt-1">{errors.tanggal_bayar.message}</p>
+                )}
               </div>
 
               <div className="flex gap-2 pt-4">
@@ -452,7 +569,7 @@ export default function PenyewaDetailPage() {
                   disabled={isSubmitting}
                   className="flex-1 bg-accent hover:bg-hover text-white font-medium py-2 rounded-lg transition-all"
                 >
-                  {isSubmitting ? 'Menyimpan...' : 'Update'}
+                  {isSubmitting ? 'Menyimpan...' : selectedTagihan?.id === 0 ? 'Buat Tagihan' : 'Update'}
                 </button>
                 <button
                   type="button"

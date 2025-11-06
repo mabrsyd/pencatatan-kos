@@ -24,11 +24,29 @@ export const transaksiKeuanganSchema = z.object({
 
 export const tagihanSchema = z.object({
   penyewa_id: z.number().min(1, 'Penyewa wajib dipilih'),
-  kamar_id: z.number().min(1, 'Kamar wajib dipilih'),
   bulan: z.string().min(1, 'Bulan wajib diisi'),
   jumlah: z.number().min(0, 'Jumlah harus positif').max(10000000, 'Jumlah maksimal 10 juta'),
+  terbayar: z.number().min(0, 'Terbayar harus positif').max(10000000, 'Terbayar maksimal 10 juta').optional(),
   jenis_tagihan: z.string().min(1, 'Jenis tagihan wajib diisi').max(50, 'Jenis tagihan maksimal 50 karakter'),
-  status: z.enum(['Lunas', 'Belum Lunas', 'Cicil'])
+  status: z.enum(['Lunas', 'Belum Lunas', 'Cicil']),
+  diterima_oleh: z.string().optional(),
+  tanggal_bayar: z.string().optional()
+})
+
+export const paymentUpdateSchema = z.object({
+  status: z.enum(['Lunas', 'Belum Lunas', 'Cicil']),
+  jumlah: z.number().min(0, 'Jumlah terbayar harus positif'),
+  jenis_tagihan: z.string().min(1, 'Jenis tagihan wajib diisi'),
+  diterima_oleh: z.string().optional(),
+  tanggal_bayar: z.string().optional()
+}).refine((data) => {
+  if (data.status === 'Lunas' || data.status === 'Cicil') {
+    return data.diterima_oleh && data.diterima_oleh.trim() !== '' && data.tanggal_bayar && data.tanggal_bayar.trim() !== '';
+  }
+  return true;
+}, {
+  message: "Diterima oleh dan tanggal pembayaran wajib diisi untuk status Lunas atau Cicil",
+  path: ["status"]
 })
 
 export const userSchema = z.object({
@@ -43,4 +61,5 @@ export type PenyewaFormData = z.infer<typeof penyewaSchema>
 export type TransaksiFormData = z.infer<typeof transaksiKeuanganSchema>
 export type TransaksiKeuanganFormData = z.infer<typeof transaksiKeuanganSchema>
 export type TagihanFormData = z.infer<typeof tagihanSchema>
+export type PaymentUpdateFormData = z.infer<typeof paymentUpdateSchema>
 export type UserFormData = z.infer<typeof userSchema>

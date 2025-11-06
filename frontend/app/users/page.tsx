@@ -18,7 +18,7 @@ import * as XLSX from 'xlsx'
 import { Users, UserPlus, Shield, Settings, User, Search, Download, Edit, Trash2, Crown, Wrench, X } from 'lucide-react'
 
 interface User {
-  ID: number
+  id: number
   name: string
   email: string
   role: string
@@ -103,7 +103,7 @@ export default function UsersPage() {
     try {
       const token = localStorage.getItem('token')
       if (editingUser) {
-        await axios.put(`http://localhost:8080/users/${editingUser.ID}`, data, {
+        await axios.put(`http://localhost:8080/users/${editingUser.id}`, data, {
           headers: { Authorization: `Bearer ${token}` }
         })
         showSuccess('Pengguna berhasil diperbarui')
@@ -142,7 +142,7 @@ export default function UsersPage() {
 
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://localhost:8080/users/${userToDelete.ID}`, {
+      await axios.delete(`http://localhost:8080/users/${userToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       showSuccess('Pengguna berhasil dihapus')
@@ -350,7 +350,7 @@ export default function UsersPage() {
           {/* Users Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredUsers.map((u) => (
-              <div key={u.ID} className="group relative bg-surface dark:bg-dark-surface backdrop-blur-sm rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 border border-border dark:border-dark-border hover:scale-102">
+              <div key={u.id} className="group relative bg-surface dark:bg-dark-surface backdrop-blur-sm rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 border border-border dark:border-dark-border hover:scale-102">
                 <div className="relative">
                   <div className="flex items-start justify-between mb-3">
                     <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-lg shadow-sm">

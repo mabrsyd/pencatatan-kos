@@ -19,16 +19,16 @@ import * as XLSX from 'xlsx'
 import { Receipt, DollarSign, CheckCircle, XCircle, Plus, Search, Download, Edit, Trash2, Calendar, User, Home, Zap, Clock } from 'lucide-react'
 
 interface Tagihan {
-  ID: number
+  id: number
   penyewa_id: number
-  kamar_id: number
   bulan: string
   jumlah: number
   terbayar: number
   status: string
   jenis_tagihan: string
-  Penyewa?: { nama: string }
-  Kamar?: { nama: string }
+  diterima_oleh?: string
+  tanggal_bayar?: string
+  Penyewa?: { nama: string; Kamar?: { nama: string } }
 }
 
 export default function TagihanPage() {
@@ -66,11 +66,13 @@ export default function TagihanPage() {
     resolver: zodResolver(tagihanSchema),
     defaultValues: {
       penyewa_id: 0,
-      kamar_id: 0,
       bulan: '',
       jumlah: 0,
+      terbayar: 0,
       jenis_tagihan: '',
-      status: 'Belum Lunas'
+      status: 'Belum Lunas',
+      diterima_oleh: '',
+      tanggal_bayar: ''
     }
   })
 
@@ -85,16 +87,17 @@ export default function TagihanPage() {
     fetchKamar()
   }, [router])
 
-  // Auto-fill kamar_id when penyewa_id changes
+  // Auto-fill terbayar when status changes
   useEffect(() => {
-    const selectedPenyewaId = watch('penyewa_id')
-    if (selectedPenyewaId && penyewa.length > 0) {
-      const selectedPenyewa = penyewa.find(p => p.ID === selectedPenyewaId)
-      if (selectedPenyewa) {
-        setValue('kamar_id', selectedPenyewa.kamar_id)
-      }
+    const currentStatus = watch('status')
+    const currentJumlah = watch('jumlah')
+    if (currentStatus === 'Lunas' && typeof currentJumlah === 'number' && !isNaN(currentJumlah) && currentJumlah > 0) {
+      setValue('terbayar', currentJumlah)
+    } else if (currentStatus === 'Belum Lunas') {
+      setValue('terbayar', 0)
     }
-  }, [watch('penyewa_id'), penyewa, setValue])
+    // For 'Cicil', leave terbayar as is (manual input)
+  }, [watch('status'), watch('jumlah'), setValue])
 
   const fetchTagihan = async () => {
     try {
@@ -140,7 +143,7 @@ export default function TagihanPage() {
     try {
       const token = localStorage.getItem('token')
       if (editingTagihan) {
-        await axios.put(`http://localhost:8080/tagihan/${editingTagihan.ID}`, data, {
+        await axios.put(`http://localhost:8080/tagihan/${editingTagihan.id}`, data, {
           headers: { Authorization: `Bearer ${token}` }
         })
         showSuccess('Tagihan berhasil diperbarui')
@@ -163,11 +166,13 @@ export default function TagihanPage() {
   const handleEdit = (t: Tagihan) => {
     setEditingTagihan(t)
     setValue('penyewa_id', t.penyewa_id)
-    setValue('kamar_id', t.kamar_id)
     setValue('bulan', t.bulan)
     setValue('jumlah', t.jumlah)
+    setValue('terbayar', t.terbayar)
     setValue('jenis_tagihan', t.jenis_tagihan)
     setValue('status', t.status as 'Lunas' | 'Belum Lunas' | 'Cicil')
+    setValue('diterima_oleh', t.diterima_oleh || '')
+    setValue('tanggal_bayar', t.tanggal_bayar || '')
     setShowForm(true)
   }
 
@@ -181,7 +186,7 @@ export default function TagihanPage() {
 
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://localhost:8080/tagihan/${tagihanToDelete.ID}`, {
+      await axios.delete(`http://localhost:8080/tagihan/${tagihanToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       showSuccess('Tagihan berhasil dihapus')
@@ -222,14 +227,16 @@ export default function TagihanPage() {
 
     const tableData = filteredTagihan.map(t => [
       t.Penyewa?.nama || '',
-      t.Kamar?.nama || '',
+      t.Penyewa?.Kamar?.nama || '',
       t.bulan,
       `Rp ${t.jumlah.toLocaleString()}`,
-      t.status
+      t.status,
+      t.diterima_oleh || '-',
+      t.tanggal_bayar ? new Date(t.tanggal_bayar).toLocaleDateString('id-ID') : '-'
     ])
 
     ;(doc as any).autoTable({
-      head: [['Penyewa', 'Kamar', 'Bulan', 'Jumlah', 'Status']],
+      head: [['Penyewa', 'Kamar', 'Bulan', 'Jumlah', 'Status', 'Diterima Oleh', 'Tanggal Bayar']],
       body: tableData,
       startY: 20,
     })
@@ -240,10 +247,12 @@ export default function TagihanPage() {
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(filteredTagihan.map(t => ({
       'Penyewa': t.Penyewa?.nama || '',
-      'Kamar': t.Kamar?.nama || '',
+      'Kamar': t.Penyewa?.Kamar?.nama || '',
       'Bulan': t.bulan,
       'Jumlah': t.jumlah,
-      'Status': t.status
+      'Status': t.status,
+      'Diterima Oleh': t.diterima_oleh || '-',
+      'Tanggal Bayar': t.tanggal_bayar ? new Date(t.tanggal_bayar).toLocaleDateString('id-ID') : '-'
     })))
 
     const workbook = XLSX.utils.book_new()
@@ -253,7 +262,7 @@ export default function TagihanPage() {
 
   const filteredTagihan = tagihan.filter(t => {
     const matchesSearch = t.Penyewa?.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         t.Kamar?.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         t.Penyewa?.Kamar?.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          t.bulan.includes(searchTerm)
     const matchesStatus = statusFilter === '' || t.status === statusFilter
     const matchesTahun = tahunFilter === '' || t.bulan.includes(tahunFilter)
@@ -478,7 +487,7 @@ export default function TagihanPage() {
               {
                 key: 'Kamar',
                 header: 'Kamar',
-                render: (value) => value?.nama || '-'
+                render: (value, row) => row.Penyewa?.Kamar?.nama || '-'
               },
               {
                 key: 'bulan',
@@ -493,7 +502,19 @@ export default function TagihanPage() {
               {
                 key: 'terbayar',
                 header: 'Terbayar',
-                render: (value) => `Rp ${value.toLocaleString()}`
+                render: (value, row) => {
+                  const jumlah = row.jumlah
+                  const terbayar = value
+                  const status = row.status
+                  
+                  if (status === 'Lunas') {
+                    return `Rp ${terbayar.toLocaleString()} (Lunas)`
+                  } else if (status === 'Cicil') {
+                    return `Rp ${terbayar.toLocaleString()} dari Rp ${jumlah.toLocaleString()}`
+                  } else {
+                    return `Rp ${terbayar.toLocaleString()}`
+                  }
+                }
               },
               {
                 key: 'status',
@@ -510,6 +531,16 @@ export default function TagihanPage() {
                     </span>
                   )
                 }
+              },
+              {
+                key: 'diterima_oleh',
+                header: 'Diterima Oleh',
+                render: (value) => value || '-'
+              },
+              {
+                key: 'tanggal_bayar',
+                header: 'Tanggal Bayar',
+                render: (value) => value ? new Date(value).toLocaleDateString('id-ID') : '-'
               },
               {
                 key: 'actions',
@@ -594,7 +625,7 @@ export default function TagihanPage() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label htmlFor="penyewa_id" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
                     Penyewa
@@ -669,6 +700,62 @@ export default function TagihanPage() {
                   {errors.jumlah && (
                     <p id="jumlah-error" className="mt-1 text-sm text-red-500" role="alert">
                       {errors.jumlah.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="terbayar" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
+                    Terbayar (Rp)
+                  </label>
+                  <input
+                    id="terbayar"
+                    type="number"
+                    {...register('terbayar', { valueAsNumber: true })}
+                    className="w-full px-3 py-2 bg-bg-primary dark:bg-dark-bg-primary border border-border dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary focus:border-transparent transition-all duration-300 text-text-primary dark:text-dark-text-primary placeholder-text-secondary dark:placeholder-dark-text-secondary focus-ring"
+                    placeholder="0"
+                    aria-describedby={errors.terbayar ? "terbayar-error" : undefined}
+                  />
+                  {errors.terbayar && (
+                    <p id="terbayar-error" className="mt-1 text-sm text-red-500" role="alert">
+                      {errors.terbayar.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="diterima_oleh" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
+                    Diterima Oleh
+                  </label>
+                  <input
+                    id="diterima_oleh"
+                    type="text"
+                    {...register('diterima_oleh')}
+                    className="w-full px-3 py-2 bg-bg-primary dark:bg-dark-bg-primary border border-border dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary focus:border-transparent transition-all duration-300 text-text-primary dark:text-dark-text-primary placeholder-text-secondary dark:placeholder-dark-text-secondary focus-ring"
+                    placeholder="e.g., Pengurus Kos"
+                    aria-describedby={errors.diterima_oleh ? "diterima-error" : undefined}
+                  />
+                  {errors.diterima_oleh && (
+                    <p id="diterima-error" className="mt-1 text-sm text-red-500" role="alert">
+                      {errors.diterima_oleh.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="tanggal_bayar" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
+                    Tanggal Bayar
+                  </label>
+                  <input
+                    id="tanggal_bayar"
+                    type="date"
+                    {...register('tanggal_bayar')}
+                    className="w-full px-3 py-2 bg-bg-primary dark:bg-dark-bg-primary border border-border dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary focus:border-transparent transition-all duration-300 text-text-primary dark:text-dark-text-primary focus-ring"
+                    aria-describedby={errors.tanggal_bayar ? "tanggal-error" : undefined}
+                  />
+                  {errors.tanggal_bayar && (
+                    <p id="tanggal-error" className="mt-1 text-sm text-red-500" role="alert">
+                      {errors.tanggal_bayar.message}
                     </p>
                   )}
                 </div>

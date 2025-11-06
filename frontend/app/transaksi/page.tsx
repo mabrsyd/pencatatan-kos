@@ -19,7 +19,7 @@ import * as XLSX from 'xlsx'
 import { TrendingUp, TrendingDown, DollarSign, Plus, Search, Download, Edit, Trash2, Calendar, ArrowUpCircle, ArrowDownCircle, Wallet } from 'lucide-react'
 
 interface Transaksi {
-  ID: number
+  id: number
   jenis: string
   kategori: string
   jumlah: number
@@ -92,7 +92,7 @@ export default function TransaksiPage() {
     try {
       const token = localStorage.getItem('token')
       if (editingTransaksi) {
-        await axios.put(`http://localhost:8080/transaksi/${editingTransaksi.ID}`, data, {
+        await axios.put(`http://localhost:8080/transaksi/${editingTransaksi.id}`, data, {
           headers: { Authorization: `Bearer ${token}` }
         })
         showSuccess('Transaksi berhasil diperbarui')
@@ -131,7 +131,7 @@ export default function TransaksiPage() {
 
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://localhost:8080/transaksi/${transaksiToDelete.ID}`, {
+      await axios.delete(`http://localhost:8080/transaksi/${transaksiToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       showSuccess('Transaksi berhasil dihapus')

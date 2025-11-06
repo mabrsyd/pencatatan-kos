@@ -64,16 +64,16 @@ func Connect() {
 
 	log.Println("Database connection successful")
 
-	// Handle penyewa table migration - drop and recreate if needed
-	if DB.Migrator().HasTable(&models.Penyewa{}) {
-		// Check if old kontak column exists
-		if DB.Migrator().HasColumn(&models.Penyewa{}, "kontak") {
-			log.Println("Old penyewa table structure detected, recreating table...")
-			err = DB.Migrator().DropTable(&models.Penyewa{})
+	// Handle transaksi table migration - drop and recreate if needed
+	if DB.Migrator().HasTable(&models.Transaksi{}) {
+		// Check if old tagihan_id column exists
+		if DB.Migrator().HasColumn(&models.Transaksi{}, "tagihan_id") {
+			log.Println("Old transaksi table structure detected, recreating table...")
+			err = DB.Migrator().DropTable(&models.Transaksi{})
 			if err != nil {
-				log.Fatal("Failed to drop old penyewa table:", err)
+				log.Fatal("Failed to drop old transaksi table:", err)
 			}
-			log.Println("Dropped old penyewa table")
+			log.Println("Dropped old transaksi table")
 		}
 	}
 
@@ -105,8 +105,7 @@ func Connect() {
 			deleted_at TIMESTAMP NULL,
 			nama VARCHAR(255) NOT NULL,
 			harga INTEGER NOT NULL,
-			status VARCHAR(255) NOT NULL,
-			penyewa_id INTEGER NULL
+			status VARCHAR(255) NOT NULL
 		)
 	`).Error
 	if err != nil {
@@ -143,7 +142,9 @@ func Connect() {
 			jumlah INTEGER NOT NULL,
 			terbayar INTEGER DEFAULT 0,
 			status VARCHAR(255) NOT NULL,
-			jenis_tagihan VARCHAR(255) DEFAULT 'Penyewa'
+			jenis_tagihan VARCHAR(255) DEFAULT 'Penyewa',
+			diterima_oleh VARCHAR(255) NULL,
+			tanggal_bayar DATE NULL
 		)
 	`).Error
 	if err != nil {
@@ -156,14 +157,32 @@ func Connect() {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			deleted_at TIMESTAMP NULL,
-			tagihan_id INTEGER NOT NULL,
-			jumlah INTEGER NOT NULL,
 			jenis VARCHAR(255) NOT NULL,
-			keterangan TEXT NULL
+			kategori VARCHAR(255) NOT NULL,
+			jumlah INTEGER NOT NULL,
+			tanggal DATE NOT NULL
 		)
 	`).Error
 	if err != nil {
 		log.Fatal("Failed to create transaksis table:", err)
+	}
+
+	err = DB.Exec(`
+		CREATE TABLE IF NOT EXISTS notifikasis (
+			id SERIAL PRIMARY KEY,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			deleted_at TIMESTAMP NULL,
+			penyewa_id INTEGER NOT NULL,
+			tagihan_id INTEGER NOT NULL,
+			tipe VARCHAR(255) NOT NULL,
+			status VARCHAR(255) DEFAULT 'pending',
+			message TEXT NULL,
+			sent_at TIMESTAMP NULL
+		)
+	`).Error
+	if err != nil {
+		log.Fatal("Failed to create notifikasis table:", err)
 	}
 
 	log.Println("Database connected and migrated successfully")

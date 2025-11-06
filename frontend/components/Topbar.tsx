@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { LogOut, Moon, Sun, User } from 'lucide-react'
+import NotificationCenter from './NotificationCenter'
 
 export default function Topbar() {
   const [user, setUser] = useState<any>(null)
@@ -45,6 +46,11 @@ export default function Topbar() {
 
           {/* User Actions */}
           <div className="flex items-center space-x-3">
+            {/* Notification Center */}
+            <div className="text-white">
+              <NotificationCenter />
+            </div>
+
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}

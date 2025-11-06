@@ -20,16 +20,20 @@ func GetDashboard(c *gin.Context) {
 
 	// Total pendapatan (dari tagihan lunas)
 	var totalPendapatan int64
-	database.DB.Model(&models.Tagihan{}).Where("status = ?", "Lunas").Select("SUM(jumlah)").Scan(&totalPendapatan)
+	database.DB.Model(&models.Tagihan{}).Where("status = ?", "Lunas").Select("COALESCE(SUM(jumlah), 0)").Scan(&totalPendapatan)
 
 	// Tagihan belum dibayar
 	var tagihanBelum int64
-	database.DB.Model(&models.Tagihan{}).Where("status = ?", "Belum Lunas").Count(&tagihanBelum)
+	database.DB.Model(&models.Tagihan{}).Where("status != ?", "Lunas").Count(&tagihanBelum)
 
-	// Data untuk grafik pendapatan bulanan (asumsi bulan ini)
-	// Untuk sederhana, hitung total pendapatan per bulan
+	// Data untuk grafik pendapatan bulanan
 	var pendapatanBulanan []map[string]interface{}
-	database.DB.Model(&models.Tagihan{}).Where("status = ?", "Lunas").Select("bulan, SUM(jumlah) as total").Group("bulan").Find(&pendapatanBulanan)
+	database.DB.Model(&models.Tagihan{}).
+		Where("status = ?", "Lunas").
+		Select("bulan, COALESCE(SUM(jumlah), 0)::integer as total").
+		Group("bulan").
+		Order("bulan DESC").
+		Find(&pendapatanBulanan)
 
 	// Tingkat hunian kamar
 	var tersedia int64
@@ -101,7 +105,6 @@ func GenerateMonthlyBills(c *gin.Context) {
 		// Create new bill
 		bill := models.Tagihan{
 			PenyewaID: p.ID,
-			KamarID:   p.KamarID,
 			Bulan:     input.Bulan,
 			Jumlah:    kamar.Harga,
 			Status:    "Belum Lunas",

@@ -12,10 +12,21 @@ import (
 
 func GetKamar(c *gin.Context) {
 	var kamar []models.Kamar
-	if err := database.DB.Preload("Penyewa").Find(&kamar).Error; err != nil {
+	// First get all kamar
+	if err := database.DB.Find(&kamar).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch kamar"})
 		return
 	}
+
+	// Then for each kamar, get penyewa if exists
+	for i := range kamar {
+		var penyewa models.Penyewa
+		result := database.DB.Where("kamar_id = ?", kamar[i].ID).First(&penyewa)
+		if result.Error == nil {
+			kamar[i].Penyewa = &penyewa
+		}
+	}
+
 	c.JSON(http.StatusOK, kamar)
 }
 
@@ -49,10 +60,9 @@ func UpdateKamar(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Nama      string `json:"nama"`
-		Harga     int    `json:"harga"`
-		Status    string `json:"status"`
-		PenyewaID *uint  `json:"penyewa_id"`
+		Nama   string `json:"nama"`
+		Harga  int    `json:"harga"`
+		Status string `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -66,9 +76,6 @@ func UpdateKamar(c *gin.Context) {
 	}
 	if input.Status != "" {
 		kamar.Status = input.Status
-	}
-	if input.PenyewaID != nil {
-		kamar.PenyewaID = input.PenyewaID
 	}
 	if err := database.DB.Save(&kamar).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update kamar"})

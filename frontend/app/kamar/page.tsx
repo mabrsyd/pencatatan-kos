@@ -19,7 +19,7 @@ import * as XLSX from 'xlsx'
 import { Plus, Search, Filter, Edit, Trash2, Home, DollarSign, Users, CheckCircle, XCircle, Wrench, FileText, FileSpreadsheet, X } from 'lucide-react'
 
 interface Kamar {
-  ID: number
+  id: number
   nama: string
   harga: number
   status: string
@@ -94,7 +94,7 @@ export default function KamarPage() {
       setIsSubmitting(true)
       const token = localStorage.getItem('token')
       if (editingKamar) {
-        await axios.put(`http://localhost:8080/kamar/${editingKamar.ID}`, data, {
+        await axios.put(`http://localhost:8080/kamar/${editingKamar.id}`, data, {
           headers: { Authorization: `Bearer ${token}` }
         })
         showSuccess('Kamar berhasil diperbarui')
@@ -134,7 +134,7 @@ export default function KamarPage() {
 
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://localhost:8080/kamar/${kamarToDelete.ID}`, {
+      await axios.delete(`http://localhost:8080/kamar/${kamarToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       showSuccess('Kamar berhasil dihapus')

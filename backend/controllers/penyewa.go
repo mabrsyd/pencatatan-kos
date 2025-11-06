@@ -20,7 +20,7 @@ func GetPenyewa(c *gin.Context) {
 	}
 
 	// Calculate 3 months: previous, current, next in Jakarta timezone
-	jakartaLocation, _ := time.LoadLocation("Asia/Jakarta")
+	jakartaLocation := time.FixedZone("WIB", 7*3600)
 	now := time.Now().In(jakartaLocation)
 
 	// Get 3 months (previous, current, next)
@@ -83,9 +83,14 @@ func GetPenyewa(c *gin.Context) {
 }
 
 func GetPenyewaByID(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
 	var penyewa models.Penyewa
-	if err := database.DB.Preload("Kamar").First(&penyewa, id).Error; err != nil {
+	if err := database.DB.Preload("Kamar").First(&penyewa, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Penyewa not found"})
 		return
 	}
@@ -132,7 +137,6 @@ func CreatePenyewa(c *gin.Context) {
 	var kamar models.Kamar
 	if err := database.DB.First(&kamar, input.KamarID).Error; err == nil {
 		kamar.Status = "Terisi"
-		kamar.PenyewaID = &penyewa.ID
 		database.DB.Save(&kamar)
 	}
 	c.JSON(http.StatusCreated, penyewa)
@@ -198,7 +202,6 @@ func DeletePenyewa(c *gin.Context) {
 	var kamar models.Kamar
 	if err := database.DB.First(&kamar, penyewa.KamarID).Error; err == nil {
 		kamar.Status = "Tersedia"
-		kamar.PenyewaID = nil
 		database.DB.Save(&kamar)
 	}
 	if err := database.DB.Delete(&penyewa).Error; err != nil {
